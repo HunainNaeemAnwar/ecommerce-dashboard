@@ -1,10 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useSession, signIn } from "next-auth/react";
+import { useSession  } from "next-auth/react";
 import { toast } from "react-hot-toast";
-
-const ADMIN_EMAIL = "admin@example.com";
 
 interface Order {
   _id: string;

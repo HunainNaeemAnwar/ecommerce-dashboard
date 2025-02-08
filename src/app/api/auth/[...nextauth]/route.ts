@@ -2,8 +2,8 @@ import NextAuth from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import { NextAuthOptions } from "next-auth";
 
-// Define authOptions without exporting it
 const authOptions: NextAuthOptions = {
+  secret: process.env.NEXTAUTH_SECRET, // Add your secret here
   providers: [
     CredentialsProvider({
       name: "Credentials",
