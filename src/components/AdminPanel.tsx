@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useSession  } from "next-auth/react";
+import { useSession } from "next-auth/react";
 import { toast } from "react-hot-toast";
 
 interface Order {
@@ -26,30 +26,28 @@ const AdminPanel = () => {
       const res = await fetch(`/api/orders`);
       const data = await res.json();
 
-      // Sort orders: Newest first, Delivered at the bottom
       const sortedOrders = Array.isArray(data)
         ? data.sort((a, b) => {
             const dateA = new Date(a.createdAt).getTime();
             const dateB = new Date(b.createdAt).getTime();
-
             if (a.status === "Delivered" && b.status !== "Delivered") return 1;
             if (b.status === "Delivered" && a.status !== "Delivered") return -1;
-
-            return dateB - dateA; // Newest orders first
+            return dateA - dateB; // Changed to sort by date descending
           })
         : [];
 
       setOrders(sortedOrders);
     } catch (error) {
       console.error("Error fetching orders:", error);
+      toast.error("Failed to load orders");
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchOrders();
-  }, []);
+    if (status === "authenticated") fetchOrders();
+  }, [status]);
 
   const updateStatus = async (orderId: string, newStatus: string) => {
     try {
@@ -59,98 +57,152 @@ const AdminPanel = () => {
         body: JSON.stringify({ orderId, status: newStatus }),
       });
 
-      const responseData = await res.json();
-      console.log("API Response:", responseData);
+      const data = await res.json();
 
-      if (res.ok) {
-        toast.success("Order status updated!");
-        fetchOrders();
-      } else {
-        throw new Error(responseData.error || "Failed to update order");
-      }
+      if (!res.ok) throw new Error(data.error || "Failed to update order");
+
+      toast.success("Order status updated!");
+      setOrders((prev) =>
+        prev.map((order) =>
+          order._id === orderId ? { ...order, status: newStatus } : order
+        )
+      );
     } catch (error) {
-      console.error("Update Order Error:", error);
-      if (error instanceof Error) {
-        toast.error(error.message || "Error updating order status");
-      } else {
-        toast.error("Error updating order status");
-      }
+      console.error("Update error:", error);
+      toast.error(error instanceof Error ? error.message : "Update failed");
     }
   };
 
   if (status === "loading") {
     return (
-      <p className="text-center mt-10 h-screen py-10 font-Poppins tex-lg">
-        Loading...
-      </p>
+      <div className="text-center mt-10 h-screen py-10 font-Poppins text-lg">
+        Loading session...
+      </div>
     );
   }
 
   return (
-    <div className="container mx-auto p-6">
-      <h1 className="text-2xl font-bold font-Poppins mb-4">
-        Admin Panel - Orders
-      </h1>
-      {loading ? (
-        <p className="text-center font-Poppins text-lg">Loading orders...</p>
-      ) : (
-        <div className="overflow-auto ">
-          <table className="max-w-full bg-white font-Satoshi border border-black">
-            <thead>
-              <tr className=" border-b bg-black text-white border-black ">
-                <th className=" text-left">Customer</th>
-                <th className="p-2 text-left">Email</th>
-                <th className="p-2 text-left">Amount</th>
-                <th className="p-2 text-left">Status</th>
-                <th className="p-2 text-left">Address</th>
-                <th className="p-2 text-left">Postal Code</th>
-                <th className="p-2 text-left">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {orders.length > 0 ? (
-                orders.map((order) => (
-                  <tr key={order._id} className="border-b">
-                    <td className="p-2">{order.customerName}</td>
-                    <td className="p-2">{order.email}</td>
-                    <td className="p-2 font-semibold">${order.amount}</td>
-                    <td
-                      className={`p-2 ${
-                        order.status === "Delivered"
-                          ? "text-green-600"
-                          : "text-yellow-600"
-                      }`}
-                    >
-                      {order.status}
-                    </td>
-                    <td className="p-2">{order.address}</td>
-                    <td className="p-2">{order.postalCode}</td>
-                    <td className="p-2">
-                      {order.status !== "Delivered" && (
-                        <button
-                          onClick={() => updateStatus(order._id, "Delivered")}
-                          className="bg-green-500 text-white px-2 py-1 rounded text-sm font-Poppins"
-                        >
-                          Mark as Delivered
-                        </button>
-                      )}
-                    </td>
+    <div className="min-h-screen flex flex-col ">
+      <div className="container mx-auto px-2 sm:px-4 py-6 flex-grow">
+        <h1 className="text-xl sm:text-3xl font-sans font-S mb-4 px-2">
+          Admin Panel - Orders
+        </h1>
+
+        {loading ? (
+          <div className="text-center font-Poppins text-lg">
+            Loading orders...
+          </div>
+        ) : (
+          <>
+            {/* Desktop/Table View */}
+            <div className="hidden sm:block overflow-x-auto rounded-lg shadow bg-white">
+              <table className="min-w-full font-Satoshi">
+                <thead className="bg-black text-white">
+                  <tr>
+                    {[
+                      "Customer",
+                      "Email",
+                      "Amount",
+                      "Status",
+                      "Address",
+                      "Postal Code",
+                      "Actions",
+                    ].map((header) => (
+                      <th
+                        key={header}
+                        className="text-left p-3 text-sm font-medium"
+                      >
+                        {header}
+                      </th>
+                    ))}
                   </tr>
-                ))
-              ) : (
-                <tr>
-                  <td
-                    colSpan={6}
-                    className="text-center p-2 font-Poppins text-sm"
-                  >
-                    No orders found.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      )}
+                </thead>
+                <tbody className="divide-y divide-gray-200">
+                  {orders.map((order) => (
+                    <tr
+                      key={order._id}
+                      className="hover:bg-gray-50 transition-colors"
+                    >
+                      <td className="p-3 text-sm">{order.customerName}</td>
+                      <td className="p-3 text-sm">{order.email}</td>
+                      <td className="p-3 text-sm font-semibold">
+                        ${order.amount}
+                      </td>
+                      <td className="p-3 text-sm">
+                        <span
+                          className={`px-2 py-1 rounded-full ${
+                            order.status === "Delivered"
+                              ? "bg-green-100 text-green-800"
+                              : "bg-yellow-100 text-yellow-800"
+                          }`}
+                        >
+                          {order.status}
+                        </span>
+                      </td>
+                      <td className="p-3 text-sm">{order.address}</td>
+                      <td className="p-3 text-sm">{order.postalCode}</td>
+                      <td className="p-3 text-sm">
+                        {order.status !== "Delivered" && (
+                          <button
+                            onClick={() => updateStatus(order._id, "Delivered")}
+                            className="bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 rounded-md text-sm transition-colors"
+                          >
+                            Mark Delivered
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Mobile Card View */}
+            <div className="sm:hidden space-y-3 font-Poppins ">
+              {orders.map((order) => (
+                <div key={order._id} className="bg-white p-4 rounded-lg shadow">
+                  <div className="space-y-1.5">
+                    <div className="flex justify-between items-center">
+                      <h3 className="font-medium text-sm">
+                        {order.customerName}
+                      </h3>
+                      <span
+                        className={`text-xs px-2 py-1 rounded-full ${
+                          order.status === "Delivered"
+                            ? "bg-green-100 text-green-800"
+                            : "bg-yellow-100 text-yellow-800"
+                        }`}
+                      >
+                        {order.status}
+                      </span>
+                    </div>
+                    <p className="text-xs text-gray-600">{order.email}</p>
+                    <p className="text-sm font-medium">${order.amount}</p>
+                    <div className="text-xs">
+                      <p className="text-gray-600">{order.address}</p>
+                      <p className="text-gray-600">{order.postalCode}</p>
+                    </div>
+                    {order.status !== "Delivered" && (
+                      <button
+                        onClick={() => updateStatus(order._id, "Delivered")}
+                        className="w-full mt-2 bg-green-600 hover:bg-green-700 text-white py-2 rounded-md text-sm transition-colors"
+                      >
+                        Mark Delivered
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+
+        {!loading && orders.length === 0 && (
+          <div className="text-center font-Poppins text-gray-500 mt-8">
+            No orders found
+          </div>
+        )}
+      </div>
     </div>
   );
 };
