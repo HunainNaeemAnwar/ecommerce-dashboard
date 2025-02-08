@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Geist, Geist_Mono, Poppins } from "next/font/google";
 import "./globals.css";
+import SessionProvider from "@/components/SessionProvider";
+import localFont from "next/font/local";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -10,6 +12,22 @@ const geistSans = Geist({
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
+});
+const poppins = Poppins({
+  variable: "--font-poppins",
+  subsets: ["latin"],
+  weight: ["400", "700", "300", "500"],
+});
+
+const integralcf = localFont({
+  src: "./fonts/IntegarCFbold.otf",
+  variable: "--font-integral-cf",
+  weight: "100 900",
+});
+const satoshi = localFont({
+  src: "./fonts/Satoshi-Medium.otf",
+  variable: "--font-satoshi-medium",
+  weight: "100 900",
 });
 
 export const metadata: Metadata = {
@@ -25,9 +43,9 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        className={`${geistSans.variable} ${geistMono.variable} ${satoshi.variable} ${integralcf.variable} ${poppins.variable} antialiased`}
       >
-        {children}
+        <SessionProvider>{children}</SessionProvider>
       </body>
     </html>
   );
